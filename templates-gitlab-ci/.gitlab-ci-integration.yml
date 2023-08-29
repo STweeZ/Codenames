@@ -1,0 +1,117 @@
+job:build-jdk-17-integrate:
+#  image: gradle:7.2.0-jdk17
+  stage: build
+  script:
+    - cd codenames
+    - gradle --warning-mode all $PROXY assemble
+# Factorisation possible au travers d'héritage    -
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  tags:
+    - docker
+  allow_failure: false
+
+job:build-jdk-11:
+# Utilisation du registry de l'Université d'Artois aurait été mieux (https://docs.docker.com/docker-hub/download-rate-limit/)
+  image: cache-ili.univ-artois.fr/proxy_cache/library/gradle:7.2.0-jdk11
+#  image: gradle:7.2.0-jdk11
+  stage: build
+  script:
+    - cd codenames
+    - gradle --warning-mode all $PROXY assemble
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  tags:
+    - docker
+  allow_failure: true
+
+# BUILD FAILED in 3m 6s
+# Uploading artifacts for failed job
+# 00:00
+# Uploading artifacts...
+# WARNING: codenames/build/test-results/test/TEST-*.xml: no matching files
+# ERROR: No files to upload
+job:test-gradle-jdk-17-junit:
+#  image: gradle:7.2.0-jdk17
+  stage: test
+  script:
+    - cd codenames
+    - gradle clean test -Dorg.gradle.daemon=false --tests 'utils.*' --tests 'object.*'
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  artifacts:
+    name: tests-$CI_BUILD_REF_SLUG-$CI_COMMIT_SHA
+    expire_in: 5 mins 0 sec
+    reports:
+#      junit: codenames/build/test-results/test/TEST-*.xml
+      junit: ./codenames/build/test-results/test/TEST-*
+    paths:
+      - ./codenames/build/reports/tests/test/*
+  tags :
+    - docker
+  allow_failure: false
+
+job:test-gradle-jdk-17-jbehave:
+#  image: gradle:7.2.0-jdk17
+  stage: test
+  script:
+    - cd codenames
+    - gradle clean test -Dorg.gradle.daemon=false --tests 'bdd.*'
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  tags :
+    - docker
+  allow_failure: false
+
+# Error: Unknown option -c
+job:test-gradle-jdk-17-jmeter:
+  image: justb4/jmeter:latest
+  stage: test
+  script:
+    - cd codenames
+    - /entrypoint.sh -n -t src/test/jmeter/jmeter-tests.jmx -l ./testresults.log -e -o ./testresults
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  tags :
+    - docker
+  allow_failure: true
+
+# Problème lié au nom de ma branche : Malformed key for Projet: 'codenameili2022_feature/corrections'. Allowed characters are alphanumeric, '-', '_', '.' and ':', with at least one non-digit.
+# Utilisation de la variable $CI_BUILD_REF_SLUG : https://gitlab.com/gitlab-org/gitlab-foss/-/issues/22849
+# !!! Je ne vous en tiendrais pas rigueur !!!
+job:sonarqube-gradle-7.2.0-jdk-17:
+#  image : gradle:7.2.0-jdk17
+  stage: code-quality
+  script:
+    - cd codenames
+    - gradle $PROXY $SONARINFO sonarqube
+#    - echo "https://sonarqube.univ-artois.fr/dashboard?id=codenameili2022_$CI_COMMIT_REF_NAME"
+    - echo "https://sonarqube.univ-artois.fr/dashboard?id=codenameili2022_$CI_BUILD_REF_SLUG"
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  tags :
+    - docker
+  allow_failure: true
+
+job:javadoc-gradle-7.2.0-jdk-17:
+#  image : gradle:7.2.0-jdk17
+  stage: javadoc
+  script:
+    - cd codenames
+    - gradle javadoc
+# Factorisation possible au travers d'héritage
+  rules:
+    - if: ($CI_PIPELINE_SOURCE == 'merge_request_event' && $CI_MERGE_REQUEST_SOURCE_BRANCH_NAME == 'develop' && $CI_MERGE_REQUEST_TARGET_BRANCH_NAME == 'main') || $CI_PIPELINE_SOURCE == 'push'
+  artifacts:
+    name: javadoc-$CI_BUILD_REF_SLUG-$CI_COMMIT_SHA
+    expire_in: 5 mins 0 sec
+    paths:
+      - codenames/build/docs/javadoc
+  tags:
+    - docker
+  allow_failure: true

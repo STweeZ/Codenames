@@ -1,0 +1,16 @@
+job:build-jdk-17-deploy:
+#  image: gradle:7.2.0-jdk17
+  stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == 'merge_request_event'
+  script:
+    - cd codenames
+    - gradle --warning-mode all $PROXY build
+  artifacts:
+    name: build-$CI_BUILD_REF_SLUG-$CI_COMMIT_SHA
+    expire_in: 5 mins 0 sec
+    paths:
+      - codenames/build/libs/*.war
+  tags:
+    - docker
+  allow_failure: false
